@@ -84,7 +84,14 @@ def main():
 		st.markdown("**Select an equipment entry:**")
 
 		# Create a list of display names for the radio buttons
-		display_options = [f"📋 {line.split('\t')[7]} {line.split('\t')[8]} - {line.split('\t')[2]}" for line in all_data_lines]
+		display_options = []
+		for line in all_data_lines:
+			parts = line.split('\t')
+			if len(parts) >= 9:
+				model = parts[7] if len(parts) > 7 else ""
+				brand = parts[8] if len(parts) > 8 else ""
+				contact = parts[2] if len(parts) > 2 else ""
+				display_options.append(f"📋 {model} {brand} - {contact}")
 		
 		# Add a "Select equipment" placeholder at the beginning
 		display_options.insert(0, "— Select equipment —")
@@ -316,6 +323,84 @@ def main():
 									"qty_available": result.get('qty_available', 'Quantity not available'),
 									"source": result.get('source', 'Source not available')
 							})
+
+				# Display Results Section
+				st.markdown("---")
+				st.subheader("📊 Analysis Results")
+				
+				# Display normalized equipment data
+				if payload and "normalized" in payload:
+					normalized = payload["normalized"]
+					
+					col1, col2 = st.columns(2)
+					with col1:
+						st.markdown("### 🔧 Equipment Details")
+						st.markdown(f"**Brand:** {normalized.get('brand', 'N/A')}")
+						st.markdown(f"**Model:** {normalized.get('model', 'N/A')}")
+						
+						if normalized.get('options'):
+							st.markdown("**Options:**")
+							for opt in normalized['options']:
+								st.markdown(f"- {opt}")
+					
+					with col2:
+						st.markdown("### 📈 Analysis Summary")
+						if payload.get('results'):
+							st.markdown(f"**Found {len(payload['results'])} analysis results**")
+						else:
+							st.markdown("**No additional analysis results**")
+
+				# Display option explanations
+				if option_explanations:
+					st.markdown("---")
+					st.subheader("🔍 Option Explanations")
+					for opt, explanation in option_explanations.items():
+						with st.expander(f"Option: {opt}"):
+							st.markdown(explanation)
+
+				# Display market data
+				if do_market_extraction and scraping_results:
+					st.markdown("---")
+					st.subheader("🌐 Market Information")
+					
+					if scraping_results.get("search_results"):
+						st.markdown(f"**Found {len(scraping_results['search_results'])} market listings**")
+						
+						# Create a table for market data
+						market_data = []
+						for result in scraping_results["search_results"]:
+							market_data.append({
+								"Vendor": result.get('vendor', 'N/A'),
+								"Price": result.get('price', 'N/A'),
+								"Quantity": result.get('qty_available', 'N/A'),
+								"Source": result.get('source', 'N/A')
+							})
+						
+						if market_data:
+							st.dataframe(market_data, use_container_width=True)
+					else:
+						st.info("No market data found for this equipment")
+						
+						if scraping_results.get("error"):
+							st.warning(f"Market search error: {scraping_results['error']}")
+
+				# Display cache status
+				st.markdown("---")
+				st.subheader("💾 Cache Status")
+				cache_stats = cache_manager.get_cache_stats()
+				col1, col2, col3 = st.columns(3)
+				with col1:
+					st.metric("Cache Files", cache_stats.get("total_files", 0))
+				with col2:
+					st.metric("Cache Size (MB)", cache_stats.get("total_size_mb", 0))
+				with col3:
+					st.metric("Valid Files", cache_stats.get("valid_files", 0))
+				
+				if cached_data:
+					st.success("✅ Results loaded from cache (faster response)")
+				else:
+					st.info("🔄 Results processed and cached for future use")
+
 			else:
 				st.info("👆 Please select an equipment entry from the dropdown above.")
 	else:
