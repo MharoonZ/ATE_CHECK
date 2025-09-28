@@ -61,9 +61,6 @@ def _extract_from_selected_line(header: str, line: str):
 	return brand, model, options
 
 
-CACHE_EXPIRY_DAYS = 30  # You can adjust as needed
-
-
 def main():
 	st.set_page_config(page_title=APP_TITLE, page_icon="🧭", layout="wide")
 	st.title(APP_TITLE)
@@ -117,10 +114,8 @@ def main():
 			selected_line = all_data_lines[selected_index]
 			parts = selected_line.split("\t")
 
-
 			st.markdown("---")
 			st.subheader("🎯 Selected Equipment")
-
 
 			col1, col2 = st.columns(2)
 			with col1:
@@ -140,27 +135,34 @@ def main():
 			brand_for_session = parts[8].strip()
 			model_for_session = parts[7].strip()
 			options_for_session = parts[9].strip() if len(parts) > 9 else ""
-			analysis_key_current = f"{brand_for_session}|{model_for_session}|{options_for_session}"
-			# Use new cache key with options
+			
+			# Generate cache key
 			cache_key = cache_manager.get_cache_key(brand_for_session, model_for_session, options_for_session)
 			cached_data = cache_manager.load_from_cache(cache_key)
-
-			# Initialize variables that will be used in display
+			
+			# Initialize variables
 			payload = None
 			scraping_results = None
 			option_explanations = {}
+			table_data = []
 
 			if cached_data is not None:
-				payload = cached_data.get("llm_result", {})
-				scraping_results = cached_data.get("scraping_result", {})
-				# Load option explanations from cache if available
+				# Load from cache
+				payload = cached_data.get("analysis_payload")
+				scraping_results = cached_data.get("analysis_scraping")
 				option_explanations = cached_data.get("option_explanations", {})
+				table_data = cached_data.get("table_data", [])
 
 			if check_clicked or cached_data is not None:
 				if check_clicked and cached_data is None:
+					# Show comprehensive loading state with non-technical explanations
 					st.markdown("---")
 					st.subheader("🔍 Analyzing Your Equipment")
+					
+					# Add a progress line at the very beginning
 					st.info("🚀 I've started working. Please wait a bit for results...")
+
+					# Simple 3-line progress with animated icons
 					st.markdown("""
 					<style>
 					@keyframes spin {
@@ -173,9 +175,11 @@ def main():
 					}
 					</style>
 					""", unsafe_allow_html=True)
+
 					col1, col2 = st.columns([0.1, 0.9])
 					with col1:
-						st.markdown("""
+						st.markdown(
+							"""
 							<style>
 							.spinner {
 							  border: 4px solid #f3f3f3; /* Light gray */
@@ -187,22 +191,30 @@ def main():
 							  margin: auto;
 							}
 							@keyframes spin {
-							  0% { transform: rotate(0deg); }
-							  100% { transform: rotate(360deg); }
+								0% { transform: rotate(0deg); }
+								100% { transform: rotate(360deg); }
 							}
 							</style>
 							<div class="spinner"></div>
-						""", unsafe_allow_html=True)
+							""",
+							unsafe_allow_html=True
+						)
 					with col2:
 						st.write("**Parsing equipment data...**")
 
+					# Extract brand/model/options from selected line
 					brand, model, options_str = _extract_from_selected_line(header, selected_line)
 					brand_parsed = brand.strip()
 					model_parsed = model.strip()
+
+					# Parse options - only get actual options, not brand/model
 					if options_str:
+						# Use the raw options string directly, split by '/'
 						raw_options_list = [opt.strip() for opt in options_str.split('/') if opt.strip()]
+						# Filter out any that might be brand/model names
 						filtered_options = []
 						for opt in raw_options_list:
+							# Skip if it looks like a brand or model name
 							if opt.lower() not in [brand_parsed.lower(), model_parsed.lower()] and len(opt) > 0:
 								filtered_options.append(opt)
 						raw_options = '/'.join(filtered_options)
@@ -241,18 +253,37 @@ def main():
 							"results": []
 						}
 
-					# Scraping (market extraction)
-					scraping_results = None
-					if do_market_extraction:
-						try:
-							scraping_results = scrape_effective_sites(brand_parsed, model_parsed, raw_options)
-						except Exception as e:
-							scraping_results = {"search_results": [], "error": str(e)}
+					# Step 2: Explaining options
+					col1, col2 = st.columns([0.1, 0.9])
+					with col1:
+						st.markdown(
+							"""
+							<style>
+							.spinner {
+							  border: 4px solid #f3f3f3; /* Light gray */
+							  border-top: 4px solid #3498db; /* Blue */
+							  border-radius: 50%;
+							  width: 22px;
+							  height: 22px;
+							  animation: spin 1s linear infinite;
+							  margin: auto;
+							}
+							@keyframes spin {
+								0% { transform: rotate(0deg); }
+								100% { transform: rotate(360deg); }
+							}
+							</style>
+							<div class="spinner"></div>
+							""",
+							unsafe_allow_html=True
+						)
+					with col2:
+						st.write("**Explaining options...**")
 
 					# Generate option explanations
 					options_list = payload.get("normalized", {}).get("options", []) or []
 					option_explanations = {}
-					client_for_opts = get_openai_client()
+					client_for_opts = get_openai_client() # Moved here
 					if options_list:
 						brand_for_opts = payload.get("normalized", {}).get("brand", "")
 						model_for_opts = payload.get("normalized", {}).get("model", "")
@@ -278,90 +309,126 @@ def main():
 							except Exception as e:
 								option_explanations[opt] = f"Could not get details for option '{opt}': {e}"
 
-					# Save all results to cache including option explanations
+					# Web scraping
+					scraping_results = None
+					if do_market_extraction:
+						try:
+							scraping_results = scrape_effective_sites(
+								brand_parsed,
+								model_parsed,
+								payload["normalized"]["options"]
+							)
+						except Exception as e:
+							scraping_results = None
+					else:
+						st.info("Market data extraction skipped.")
+
+					steps = [
+						"Parsing equipment data",
+						"Explaining options",
+						# "Searching market data"
+					]
+
+					for step in steps:
+						col1, col2 = st.columns([0.05, 0.95])  # smaller gap
+						with col1:
+							# if step == "Searching market data" and not do_market_extraction:
+							# 	st.markdown("➖") # Use a different icon for skipped step
+							# else:
+							st.markdown("✅")
+						with col2:
+							st.markdown(
+								f"<span style='font-size:16px; font-weight:600;'>{step}</span>",
+								unsafe_allow_html=True
+							)
+
+					# Generate table data for caching
+					table_data = []
+					for i, opt in enumerate(options_list):
+						explanation = option_explanations.get(opt, "No description available.")
+						
+						# Use OpenAI to determine the category
+						category = "General"  # Default category
+						try:
+							if client_for_opts is not None:
+								category_prompt = (
+									f"Based on this option description: '{explanation}' for option '{opt}', "
+									f"categorize it into one of these categories: Connectivity, Software, Calibration, Power, Display, Storage, Communication, or General. "
+									f"Respond with only the category name, nothing else."
+								)
+								category_completion = client_for_opts.chat.completions.create(
+									model=MODEL_NAME,
+									temperature=0.1,  # Lower temperature for more consistent categorization
+									messages=[
+										{"role": "system", "content": "You are a helpful expert that categorizes test equipment options. Respond with only the category name."},
+										{"role": "user", "content": category_prompt},
+									],
+								)
+								api_category = category_completion.choices[0].message.content.strip()
+								# Validate the category is one of our predefined ones
+								valid_categories = ["Connectivity", "Software", "Calibration", "Power", "Display", "Storage", "Communication", "General"]
+								if api_category in valid_categories:
+									category = api_category
+						except Exception as e:
+							category = "General"  # Fallback to default
+						
+						table_data.append({
+							"Row": i + 1,
+							"Option Code": opt,
+							"Category": category,
+							"Description": explanation
+						})
+
+					# Save to cache
 					cache_manager.save_to_cache(cache_key, {
-						"llm_result": payload,
-						"scraping_result": scraping_results,
-						"option_explanations": option_explanations
+						"analysis_payload": payload,
+						"analysis_scraping": scraping_results,
+						"option_explanations": option_explanations,
+						"table_data": table_data
 					})
 
-				# Display Results Section
+				# Display complete results (only after everything is ready)
 				st.markdown("---")
-				st.subheader("📊 Analysis Results")
-				
-				# Display normalized equipment data
-				if payload and "normalized" in payload:
-					normalized = payload["normalized"]
-					
-					col1, col2 = st.columns(2)
-					with col1:
-						st.markdown("### 🔧 Equipment Details")
-						st.markdown(f"**Brand:** {normalized.get('brand', 'N/A')}")
-						st.markdown(f"**Model:** {normalized.get('model', 'N/A')}")
-						
-						if normalized.get('options'):
-							st.markdown("**Options:**")
-							for opt in normalized['options']:
-								st.markdown(f"- {opt}")
-					
-					with col2:
-						st.markdown("### 📈 Analysis Summary")
-						if payload.get('results'):
-							st.markdown(f"**Found {len(payload['results'])} analysis results**")
-						else:
-							st.markdown("**No additional analysis results**")
+				st.subheader("📋 Complete Analysis Results")
 
-				# Display option explanations
-				if option_explanations:
-					st.markdown("---")
-					st.subheader("🔍 Option Explanations")
-					for opt, explanation in option_explanations.items():
-						with st.expander(f"Option: {opt}"):
-							st.markdown(explanation)
+				# Show parsing results
+				st.markdown("**✅ Equipment Analysis:**")
+				st.code(json.dumps(payload, indent=2), language="json")
 
-				# Display market data
-				if do_market_extraction and scraping_results:
-					st.markdown("---")
-					st.subheader("🌐 Market Information")
-					
-					if scraping_results.get("search_results"):
-						st.markdown(f"**Found {len(scraping_results['search_results'])} market listings**")
-						
-						# Create a table for market data
-						market_data = []
-						for result in scraping_results["search_results"]:
-							market_data.append({
-								"Vendor": result.get('vendor', 'N/A'),
-								"Price": result.get('price', 'N/A'),
-								"Quantity": result.get('qty_available', 'N/A'),
-								"Source": result.get('source', 'N/A')
-							})
-						
-						if market_data:
-							st.dataframe(market_data, use_container_width=True)
-					else:
-						st.info("No market data found for this equipment")
-						
-						if scraping_results.get("error"):
-							st.warning(f"Market search error: {scraping_results['error']}")
-
-				# Display cache status
-				st.markdown("---")
-				st.subheader("💾 Cache Status")
-				cache_stats = cache_manager.get_cache_stats()
-				col1, col2, col3 = st.columns(3)
-				with col1:
-					st.metric("Cache Files", cache_stats.get("total_files", 0))
-				with col2:
-					st.metric("Cache Size (MB)", cache_stats.get("total_size_mb", 0))
-				with col3:
-					st.metric("Valid Files", cache_stats.get("valid_files", 0))
-				
-				if cached_data:
-					st.success("✅ Results loaded from cache (faster response)")
+				# Options explorer with tabular display
+				options_list = payload.get("normalized", {}).get("options", []) or []
+				st.markdown("**🔧 Options Explorer:**")
+				if not options_list:
+					st.info("No options found for this equipment model.")
 				else:
-					st.info("🔄 Results processed and cached for future use")
+					# Generate Markdown table
+					markdown_table = "**All available options for this equipment:**\n\n"
+					markdown_table += "| Row | Option Code | Category | Description |\n"
+					markdown_table += "|-----|-------------|----------|-------------|\n"
+					
+					for row_data in table_data:
+						# Escape pipe characters in description to prevent breaking table format
+						description = str(row_data['Description']).replace("|", "\|")
+						markdown_table += f"| {row_data['Row']} | {row_data['Option Code']} | {row_data['Category']} | {description} |\n"
+					
+					st.markdown(markdown_table)
 
+				# Show scraping results
+				if do_market_extraction:
+					# st.markdown("**🌐 Market Information:**")
+					scraping_json = {"web_scraping_results": []}
+					if scraping_results and "search_results" in scraping_results and scraping_results["search_results"]:
+						for result in scraping_results["search_results"]:
+							scraping_json["web_scraping_results"].append({
+								"brand": result.get('brand', 'N/A'),
+								"model": result.get('model', 'N/A'),
+								"price": result.get('price', 'Price not available'),
+								"vendor": result.get('vendor', 'Vendor not available'),
+								"web_url": result.get('web_url', 'URL not available'),
+								"qty_available": result.get('qty_available', 'Quantity not available'),
+								"source": result.get('source', 'Source not available')
+						})
+					# st.code(json.dumps(scraping_json, indent=2), language="json")
 			else:
 				st.info("👆 Please select an equipment entry from the dropdown above.")
 	else:
