@@ -61,7 +61,17 @@ def _extract_from_selected_line(header: str, line: str):
 	return brand, model, options
 
 
+def check_cache_clear():
+    """Check if cache should be cleared on startup"""
+    if os.getenv("CACHE_CLEAR_ON_START", "false").lower() == "true":
+        print("🗑️ CACHE_CLEAR_ON_START=true detected, clearing cache...")
+        cache_manager.clear_cache()
+        print("✅ Cache cleared on startup")
+
+
 def main():
+	check_cache_clear()
+	
 	st.set_page_config(page_title=APP_TITLE, page_icon="🧭", layout="wide")
 	st.title(APP_TITLE)
 	st.caption("Select equipment from the table below and click Analyze to see all the details")
