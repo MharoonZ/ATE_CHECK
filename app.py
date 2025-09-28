@@ -145,12 +145,16 @@ def main():
 			cache_key = cache_manager.get_cache_key(brand_for_session, model_for_session, options_for_session)
 			cached_data = cache_manager.load_from_cache(cache_key)
 
+			# Initialize variables that will be used in display
+			payload = None
+			scraping_results = None
+			option_explanations = {}
+
 			if cached_data is not None:
 				payload = cached_data.get("llm_result", {})
 				scraping_results = cached_data.get("scraping_result", {})
-			else:
-				payload = None
-				scraping_results = None
+				# Load option explanations from cache if available
+				option_explanations = cached_data.get("option_explanations", {})
 
 			if check_clicked or cached_data is not None:
 				if check_clicked and cached_data is None:
@@ -245,45 +249,10 @@ def main():
 						except Exception as e:
 							scraping_results = {"search_results": [], "error": str(e)}
 
-					# Save both results to cache
-					cache_manager.save_to_cache(cache_key, {
-						"llm_result": payload,
-						"scraping_result": scraping_results
-					})
-
-				# If using cached data, payload and scraping_results are already set
-				# If just processed, they are set above
-					# Step 2: Explaining options
-					col1, col2 = st.columns([0.1, 0.9])
-					with col1:
-						st.markdown(
-							"""
-							<style>
-							.spinner {
-							  border: 4px solid #f3f3f3; /* Light gray */
-							  border-top: 4px solid #3498db; /* Blue */
-							  border-radius: 50%;
-							  width: 22px;
-							  height: 22px;
-							  animation: spin 1s linear infinite;
-							  margin: auto;
-							}
-							@keyframes spin {
-							  0% { transform: rotate(0deg); }
-							  100% { transform: rotate(360deg); }
-							}
-							</style>
-							<div class="spinner"></div>
-							""",
-							unsafe_allow_html=True
-						)
-					with col2:
-						st.write("**Explaining options...**")
-
 					# Generate option explanations
 					options_list = payload.get("normalized", {}).get("options", []) or []
 					option_explanations = {}
-					client_for_opts = get_openai_client() # Moved here
+					client_for_opts = get_openai_client()
 					if options_list:
 						brand_for_opts = payload.get("normalized", {}).get("brand", "")
 						model_for_opts = payload.get("normalized", {}).get("model", "")
@@ -309,20 +278,12 @@ def main():
 							except Exception as e:
 								option_explanations[opt] = f"Could not get details for option '{opt}': {e}"
 
-					# Web scraping
-					if do_market_extraction:
-						scraping_json = {"web_scraping_results": []}
-						if scraping_results and "search_results" in scraping_results and scraping_results["search_results"]:
-							for result in scraping_results["search_results"]:
-								scraping_json["web_scraping_results"].append({
-									"brand": result.get('brand', 'N/A'),
-									"model": result.get('model', 'N/A'),
-									"price": result.get('price', 'Price not available'),
-									"vendor": result.get('vendor', 'Vendor not available'),
-									"web_url": result.get('web_url', 'URL not available'),
-									"qty_available": result.get('qty_available', 'Quantity not available'),
-									"source": result.get('source', 'Source not available')
-							})
+					# Save all results to cache including option explanations
+					cache_manager.save_to_cache(cache_key, {
+						"llm_result": payload,
+						"scraping_result": scraping_results,
+						"option_explanations": option_explanations
+					})
 
 				# Display Results Section
 				st.markdown("---")
