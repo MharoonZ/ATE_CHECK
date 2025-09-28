@@ -1,0 +1,13 @@
+
+streamlit>=1.33,<2
+openai>=1.30,<2
+requests>=2.31,<3
+beautifulsoup4>=4.12,<5
+lxml>=4.9
+pandas>=2.0,<3
+openpyxl>=3.1,<4
+googlesearch-python>=1.2,<2
+selenium>=4.0,<5
+webdriver-manager>=4.0,<5
+
+
