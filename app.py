@@ -165,52 +165,78 @@ def main():
 
 			if check_clicked or cached_data is not None:
 				if check_clicked and cached_data is None:
-					# Show comprehensive loading state with non-technical explanations
+					# Modern, positive analysis UI with live updates and animation
 					st.markdown("---")
+					st.markdown(
+						"""
+						<style>
+							.analysis-card {
+								background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.98));
+								backdrop-filter: blur(6px);
+								border: 1px solid rgba(0,0,0,0.12);
+								border-radius: 14px;
+								box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+								padding: 18px 18px 14px 18px;
+								color: #1e293b;
+							}
+							.pulse {
+								width: 14px;
+								height: 14px;
+								border-radius: 50%;
+								background: #22c55e;
+								box-shadow: 0 0 0 0 rgba(34,197,94, 0.7);
+								animation: pulse 1.6s infinite;
+							}
+							@keyframes pulse {
+								0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(34,197,94, 0.7); }
+								70% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(34,197,94, 0); }
+								100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(34,197,94, 0); }
+							}
+							.step {
+								display: flex; align-items: center; gap: 10px; margin: 8px 0;
+							}
+							.step-text { font-weight: 600; color: #1e293b; }
+							.result-card { 
+								border: 1px solid rgba(0,0,0,0.12); 
+								border-radius: 12px; 
+								padding: 12px 14px; 
+								box-shadow: 0 4px 16px rgba(0,0,0,0.08); 
+								background: #f8fafc; 
+								color: #1e293b;
+							}
+						</style>
+						""",
+						unsafe_allow_html=True
+					)
 					st.subheader("🔍 Analyzing Your Equipment")
+					st.markdown(
+						"""
+						<div class="analysis-card">
+							<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+								<div class="pulse"></div>
+								<div style="font-weight:700;">Looking good — preparing tailored insights for your selection.</div>
+							</div>
+						</div>
+						""",
+						unsafe_allow_html=True
+					)
+					progress_bar = st.progress(0)
+					status_placeholder = st.empty()
 					
-					# Add a progress line at the very beginning
-					st.info("🚀 I've started working. Please wait a bit for results...")
-
-					# Simple 3-line progress with animated icons
-					st.markdown("""
-					<style>
-					@keyframes spin {
-						0% { transform: rotate(0deg); }
-						100% { transform: rotate(360deg); }
-					}
-					.spinning {
-						animation: spin 1s linear infinite;
-						display: inline-block;
-					}
-					</style>
-					""", unsafe_allow_html=True)
-
-					col1, col2 = st.columns([0.1, 0.9])
-					with col1:
-						st.markdown(
-							"""
-							<style>
-							.spinner {
-							  border: 4px solid #f3f3f3; /* Light gray */
-							  border-top: 4px solid #3498db; /* Blue */
-							  border-radius: 50%;
-							  width: 22px;
-							  height: 22px;
-							  animation: spin 1s linear infinite;
-							  margin: auto;
-							}
-							@keyframes spin {
-								0% { transform: rotate(0deg); }
-								100% { transform: rotate(360deg); }
-							}
-							</style>
-							<div class="spinner"></div>
-							""",
-							unsafe_allow_html=True
-						)
-					with col2:
-						st.write("**Parsing equipment data...**")
+					# Dynamic status messages with real-time updates
+					import time
+					
+					status_placeholder.info("🚀 Getting started… we're setting up the analysis pipeline.")
+					progress_bar.progress(10)
+					time.sleep(1.0)
+					
+					status_placeholder.success("📋 Equipment selected — parsing your configuration details.")
+					progress_bar.progress(20)
+					time.sleep(1.0)
+					
+					status_placeholder.info("🔍 Deep-diving into your equipment specifications…")
+					progress_bar.progress(30)
+					time.sleep(1.0)
 
 					# Extract brand/model/options from selected line
 					brand, model, options_str = _extract_from_selected_line(header, selected_line)
@@ -232,6 +258,17 @@ def main():
 						raw_options = ""
 
 					# AI processing
+					status_placeholder.success("✅ Parsed your selection — extracting key details.")
+					progress_bar.progress(35)
+					time.sleep(1.0)
+					
+					status_placeholder.info("🤖 AI is analyzing your equipment configuration…")
+					progress_bar.progress(45)
+					time.sleep(1.0)
+					
+					status_placeholder.success("🎯 Equipment details extracted — processing options now.")
+					progress_bar.progress(50)
+					time.sleep(1.0)
 					try:
 						client = get_openai_client()
 						llm_input = f"{brand_parsed} {model_parsed} {raw_options}" if raw_options else f"{brand_parsed} {model_parsed}"
@@ -264,31 +301,17 @@ def main():
 						}
 
 					# Step 2: Explaining options
-					col1, col2 = st.columns([0.1, 0.9])
-					with col1:
-						st.markdown(
-							"""
-							<style>
-							.spinner {
-							  border: 4px solid #f3f3f3; /* Light gray */
-							  border-top: 4px solid #3498db; /* Blue */
-							  border-radius: 50%;
-							  width: 22px;
-							  height: 22px;
-							  animation: spin 1s linear infinite;
-							  margin: auto;
-							}
-							@keyframes spin {
-								0% { transform: rotate(0deg); }
-								100% { transform: rotate(360deg); }
-							}
-							</style>
-							<div class="spinner"></div>
-							""",
-							unsafe_allow_html=True
-						)
-					with col2:
-						st.write("**Explaining options...**")
+					status_placeholder.info("💡 Clarifying options — translating codes into clear benefits.")
+					progress_bar.progress(60)
+					time.sleep(1.0)
+					
+					status_placeholder.success("🔧 Processing option explanations — making technical details clear.")
+					progress_bar.progress(70)
+					time.sleep(1.0)
+					
+					status_placeholder.info("📚 Generating comprehensive option descriptions…")
+					progress_bar.progress(75)
+					time.sleep(1.0)
 
 					# Generate option explanations
 					options_list = payload.get("normalized", {}).get("options", []) or []
@@ -333,24 +356,13 @@ def main():
 					else:
 						st.info("Market data extraction skipped.")
 
-					steps = [
-						"Parsing equipment data",
-						"Explaining options",
-						# "Searching market data"
-					]
-
-					for step in steps:
-						col1, col2 = st.columns([0.05, 0.95])  # smaller gap
-						with col1:
-							# if step == "Searching market data" and not do_market_extraction:
-							# 	st.markdown("➖") # Use a different icon for skipped step
-							# else:
-							st.markdown("✅")
-						with col2:
-							st.markdown(
-								f"<span style='font-size:16px; font-weight:600;'>{step}</span>",
-								unsafe_allow_html=True
-							)
+					status_placeholder.success("🎯 Almost there — assembling your complete results.")
+					progress_bar.progress(90)
+					time.sleep(1.0)
+					
+					status_placeholder.info("📊 Finalizing analysis — organizing all findings.")
+					progress_bar.progress(95)
+					time.sleep(1.0)
 
 					# Generate table data for caching
 					table_data = []
@@ -396,9 +408,17 @@ def main():
 						"option_explanations": option_explanations,
 						"table_data": table_data
 					})
+					status_placeholder.success("✨ Done — your insights are ready below.")
+					progress_bar.progress(100)
+					time.sleep(1.0)
+					
+					# Final success message
+					status_placeholder.success("🎉 Analysis complete! Scroll down to view your detailed results.")
+					time.sleep(1)
 
 				# Display complete results (only after everything is ready)
 				st.markdown("---")
+				st.markdown("<div class='result-card'>", unsafe_allow_html=True)
 				st.subheader("📋 Complete Analysis Results")
 
 				# Show parsing results
@@ -439,6 +459,7 @@ def main():
 								"source": result.get('source', 'Source not available')
 						})
 					# st.code(json.dumps(scraping_json, indent=2), language="json")
+				st.markdown("</div>", unsafe_allow_html=True)
 			else:
 				st.info("👆 Please select an equipment entry from the dropdown above.")
 	else:
