@@ -82,65 +82,78 @@ def main():
 	# Create a nice table display with selection
 	if header and all_data_lines:
 		st.markdown("---")
-		st.subheader("📊 ATE Equipment Database")
-
-		# Parse header for column names
-		header_cols = header.split("\t")
-
-		# Create a DataFrame-like display with selection
-		st.markdown("**Select an equipment entry:**")
-
-		# Create a list of display names for the radio buttons
-		display_options = []
-		for line in all_data_lines:
-			parts = line.split('\t')
-			if len(parts) >= 9:
-				model = parts[7] if len(parts) > 7 else ""
-				brand = parts[8] if len(parts) > 8 else ""
-				contact = parts[2] if len(parts) > 2 else ""
-				display_options.append(f"📋 {model} {brand} - {contact}")
 		
-		# Add a "Select equipment" placeholder at the beginning
-		display_options.insert(0, "— Select equipment —")
+		# Create two-column layout
+		col_left, col_right = st.columns([1, 1])
 		
-		selected_display_option = st.radio(
-			"Choose equipment:",
-			options=display_options,
-			index=0 # Default to the placeholder
-		)
-		
-		# Add a radio button for market extraction
-		do_market_extraction = True # Always perform market extraction now
+		with col_left:
+			st.subheader("📊 ATE Equipment Database")
 
-		# Determine the selected_index based on the display option
-		if selected_display_option == "— Select equipment —":
-			selected_index = -1
-		else:
-			# Find the original index of the selected item
-			selected_index = display_options.index(selected_display_option) - 1 # Subtract 1 because of the placeholder
+			# Parse header for column names
+			header_cols = header.split("\t")
+
+			# Create a DataFrame-like display with selection
+			st.markdown("**Select an equipment entry:**")
+
+			# Create a list of display names for the radio buttons
+			display_options = []
+			for line in all_data_lines:
+				parts = line.split('\t')
+				if len(parts) >= 9:
+					model = parts[7] if len(parts) > 7 else ""
+					brand = parts[8] if len(parts) > 8 else ""
+					contact = parts[2] if len(parts) > 2 else ""
+					display_options.append(f"📋 {model} {brand} - {contact}")
 			
+			# Add a "Select equipment" placeholder at the beginning
+			display_options.insert(0, "— Select equipment —")
+			
+			selected_display_option = st.radio(
+				"Choose equipment:",
+				options=display_options,
+				index=0 # Default to the placeholder
+			)
 		
-		if selected_index != -1:
-			selected_line = all_data_lines[selected_index]
-			parts = selected_line.split("\t")
+		with col_right:
+			# Determine the selected_index based on the display option
+			if selected_display_option == "— Select equipment —":
+				selected_index = -1
+				st.subheader("🎯 Selected Equipment")
+				st.info("👆 Please select an equipment entry from the left to see details here.")
+			else:
+				# Find the original index of the selected item
+				selected_index = display_options.index(selected_display_option) - 1 # Subtract 1 because of the placeholder
+				selected_line = all_data_lines[selected_index]
+				parts = selected_line.split("\t")
 
-			st.markdown("---")
-			st.subheader("🎯 Selected Equipment")
+				st.subheader("🎯 Selected Equipment")
 
-			col1, col2 = st.columns(2)
-			with col1:
 				st.markdown(f"**Quote ID:** {parts[0]}")
 				st.markdown(f"**Contact:** {parts[2]}")
 				st.markdown(f"**Brand:** {parts[8]}")
 				st.markdown(f"**Model:** {parts[7]}")
-			with col2:
 				st.markdown(f"**Created:** {parts[1]}")
 				st.markdown(f"**Record ID:** {parts[4]}")
 				st.markdown(f"**Options:** {parts[9]}")
+		
+		# Add a radio button for market extraction
+		do_market_extraction = True # Always perform market extraction now
+		
+		# Analyze button in the middle below both columns
+		st.markdown("---")
+		col_center1, col_center2, col_center3 = st.columns([1, 2, 1])
+		with col_center2:
+			if selected_index != -1:
+				check_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
+			else:
+				check_clicked = False
+				st.button("🔍 Analyze", type="primary", use_container_width=True, disabled=True)
 
-			st.markdown("---")
-			check_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
-
+		# Initialize variables for analysis
+		if selected_index != -1:
+			selected_line = all_data_lines[selected_index]
+			parts = selected_line.split("\t")
+			
 			# Check if we have cached analysis for this equipment
 			brand_for_session = parts[8].strip()
 			model_for_session = parts[7].strip()
@@ -149,13 +162,21 @@ def main():
 			# Generate cache key
 			cache_key = cache_manager.get_cache_key(brand_for_session, model_for_session, options_for_session)
 			cached_data = cache_manager.load_from_cache(cache_key)
-			
-			# Initialize variables
-			payload = None
-			scraping_results = None
-			option_explanations = {}
-			table_data = []
+		else:
+			check_clicked = False
+			brand_for_session = ""
+			model_for_session = ""
+			options_for_session = ""
+			cached_data = None
 
+		# Initialize variables
+		payload = None
+		scraping_results = None
+		option_explanations = {}
+		table_data = []
+
+		# Only proceed with analysis if an item is selected
+		if selected_index != -1:
 			if cached_data is not None:
 				# Load from cache
 				payload = cached_data.get("analysis_payload")
@@ -460,8 +481,6 @@ def main():
 						})
 					# st.code(json.dumps(scraping_json, indent=2), language="json")
 				st.markdown("</div>", unsafe_allow_html=True)
-			else:
-				st.info("👆 Please select an equipment entry from the dropdown above.")
 	else:
 		st.error("No dataset available.")
 
