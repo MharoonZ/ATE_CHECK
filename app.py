@@ -119,7 +119,7 @@ def main():
 			if selected_display_option == "— Select equipment —":
 				selected_index = -1
 				st.subheader("🎯 Selected Equipment")
-				st.info("👆 Please select an equipment entry from the left to see details here.")
+				st.info("👈 Please select an equipment entry from the left to see details here.")
 			else:
 				# Find the original index of the selected item
 				selected_index = display_options.index(selected_display_option) - 1 # Subtract 1 because of the placeholder
